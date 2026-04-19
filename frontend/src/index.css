@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Standard Fallback in case Tailwind fails */
+:root {
+  --bg-color: #050505;
+  --panel-color: #0c0c0c;
+  --accent-color: #facc15;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: #050505;
+  color: #ffffff;
+  overflow: hidden;
+  font-family: 'Inter', sans-serif;
+}
+
+/* TECHNICAL GRID BACKGROUND */
+body {
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+@layer components {
+  .ai-container {
+    @apply flex w-[94vw] h-[92vh] bg-[#0d0d0d] rounded-[2.5rem] border border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.8)] overflow-hidden relative z-10;
+  }
+
+  /* SIDEBAR STYLES */
+  .sidebar-pill {
+    @apply flex items-center justify-between px-5 py-3 rounded-2xl transition-all duration-300 text-sm font-semibold text-white/30 hover:text-white/60 hover:bg-white/5;
+  }
+
+  .sidebar-pill.active {
+    @apply bg-white/10 text-white shadow-lg;
+  }
+
+  /* ORB STYLES */
+  .orb {
+    @apply w-32 h-32 rounded-full relative;
+    background: radial-gradient(circle at 30% 30%, #facc15 0%, #a16207 70%, transparent 100%);
+    filter: blur(15px);
+    box-shadow: 0 0 50px rgba(250, 204, 21, 0.2);
+  }
+
+  .orb-core {
+    @apply absolute inset-0 rounded-full border border-yellow-500/20 bg-black/40 backdrop-blur-md m-4;
+  }
+
+  /* ACTION CARDS */
+  .action-card {
+    @apply bg-[#141414] border border-white/5 rounded-[2rem] p-6 flex items-start gap-4 transition-all hover:bg-white/10 hover:border-white/10 text-left;
+  }
+
+  .bg-text {
+    @apply absolute font-black text-white/[0.02] pointer-events-none select-none uppercase italic;
+    font-size: 15rem;
+    line-height: 0.8;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
