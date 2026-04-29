@@ -16,17 +16,44 @@ const Roadmap = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ branch, target_role: role }),
       });
+      
+      if (!response.ok) throw new Error("HTTP Error");
+
       const data = await response.json();
-      setRoadmap(data);
+      
+      // Defensively parse in case AI wraps the array in an object
+      let parsedData = data;
+      if (!Array.isArray(data)) {
+        parsedData = data.roadmap || data.data || data.weeks || Object.values(data)[0] || [];
+      }
+      
+      if (!Array.isArray(parsedData) || parsedData.length === 0) {
+         throw new Error("Invalid format from AI");
+      }
+
+      setRoadmap(parsedData);
     } catch (error) {
       console.error("Failed to generate roadmap", error);
+      alert("Failed to generate roadmap. Please try again or check your AI API key.");
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const branches = ["Computer Science", "IT", "Electronics", "Mechanical", "Civil"];
-  const roles = ["Software Engineer", "Data Analyst", "Product Manager", "Hardware Engineer", "UI/UX Designer"];
+  const branches = [
+    "Computer Science", "Information Technology", "Artificial Intelligence & ML",
+    "Data Science", "Cybersecurity", "Electronics & Communication",
+    "Mechanical Engineering", "Civil Engineering", "Electrical Engineering",
+    "Aerospace Engineering", "Biotechnology", "Finance & Accounting",
+    "Marketing", "Human Resources", "Product Management", "UI/UX Design", "Game Development"
+  ];
+  const roles = [
+    "Software Engineer", "Frontend Developer", "Backend Developer", "Full Stack Developer",
+    "Data Analyst", "Data Scientist", "Machine Learning Engineer", "Cloud Architect",
+    "DevOps Engineer", "Cybersecurity Analyst", "Product Manager", "Hardware Engineer",
+    "UI/UX Designer", "Marketing Executive", "HR Manager", "Financial Analyst",
+    "Structural Engineer", "Automotive Engineer", "Game Programmer"
+  ];
 
   return (
     <div className="h-full overflow-y-auto p-12 max-w-6xl mx-auto no-scrollbar">
@@ -77,28 +104,57 @@ const Roadmap = () => {
           </motion.div>
         </div>
       ) : (
-        <div className="space-y-12 pb-20">
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="space-y-12 pb-20 max-w-3xl mx-auto">
+           <div className="relative border-l-2 border-white/10 ml-6 md:ml-10 space-y-12">
             {roadmap.map((week, idx) => (
               <motion.div
                 key={idx}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.1 }}
-                className="bg-[#111111] border border-white/5 p-6 rounded-[2rem] hover:border-yellow-500/20 transition-all"
+                initial={{ opacity: 0, x: -30, scale: 0.95 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                transition={{ delay: idx * 0.15, type: 'spring', stiffness: 100 }}
+                className="relative pl-10 md:pl-16"
               >
-                <span className="text-[10px] font-black uppercase tracking-widest text-yellow-500 mb-4 block">Week 0{week.week || idx+1}</span>
-                <h4 className="text-sm font-black text-white/80 mb-4">{week.title}</h4>
-                <p className="text-[10px] text-white/40 leading-relaxed font-medium line-clamp-3">{week.goal}</p>
-                <div className="mt-6 pt-6 border-t border-white/5 flex flex-wrap gap-2">
-                   {week.topics.slice(0, 2).map((t, i) => (
-                     <span key={i} className="px-2 py-1 bg-white/5 rounded-lg text-[8px] font-bold text-white/20 uppercase tracking-widest">{t}</span>
-                   ))}
-                </div>
+                {/* Timeline Dot with Glow */}
+                <div className="absolute -left-[11px] top-6 w-5 h-5 rounded-full bg-yellow-500 border-[4px] border-black shadow-[0_0_20px_rgba(250,204,21,0.6)] z-10" />
+                
+                <div className="bg-[#111111] border border-white/5 p-8 rounded-[2rem] hover:border-yellow-500/30 transition-all duration-300 group relative overflow-hidden shadow-lg">
+                  {/* Subtle hover background glow */}
+                  <div className="absolute inset-0 bg-yellow-500/5 opacity-0 group-hover:opacity-100 transition-duration-500 pointer-events-none" />
+                  
+                  <div className="relative z-10">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-yellow-500 mb-4 block">
+                      Phase 0{week.week || idx+1}
+                    </span>
+                    <h4 className="text-xl md:text-2xl font-black text-white/90 mb-4">{week.title}</h4>
+                    <p className="text-xs text-white/50 leading-relaxed font-medium mb-8 border-b border-white/5 pb-6">
+                      {week.goal}
+                    </p>
+                    
+                    <div>
+                      <h5 className="text-[10px] font-black uppercase tracking-widest text-white/20 mb-3">Core Objectives</h5>
+                      <div className="flex flex-wrap gap-2">
+                         {week.topics.map((t, i) => (
+                           <span key={i} className="px-3 py-1.5 bg-white/5 border border-white/5 rounded-xl text-[10px] font-bold text-white/40 uppercase tracking-widest group-hover:border-yellow-500/20 group-hover:text-yellow-500/80 transition-all">
+                             {t}
+                           </span>
+                         ))}
+                      </div>
+                    </div>
+                  </div>
+                </div >
               </motion.div>
             ))}
           </div>
-          <button onClick={() => setRoadmap(null)} className="w-full py-4 border border-white/5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white/20 hover:text-white transition-all">Regenerate New Path</button>
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            transition={{ delay: roadmap.length * 0.15 + 0.5 }}
+            className="pt-8 pl-6 md:pl-10"
+          >
+            <button onClick={() => setRoadmap(null)} className="w-full py-5 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white/60 hover:bg-white/10 hover:text-white transition-all shadow-lg">
+              Regenerate New Path
+            </button>
+          </motion.div>
         </div>
       )}
     </div>

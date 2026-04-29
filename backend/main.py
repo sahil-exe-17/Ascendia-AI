@@ -1,12 +1,13 @@
 import os
 import json
-import google.generativeai as genai
+from openai import AsyncOpenAI
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 from PyPDF2 import PdfReader
 import io
+from docx import Document
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -21,18 +22,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure Gemini
-GENAI_API_KEY = os.getenv("GEMINI_API_KEY")
-if not GENAI_API_KEY or GENAI_API_KEY == "your_gemini_api_key_here":
-    print("WARNING: GEMINI_API_KEY is missing or using placeholder.")
-    GENAI_API_KEY = None
+# Configure Grok API
+GROK_API_KEY = os.getenv("GROK_API_KEY")
+if not GROK_API_KEY or GROK_API_KEY == "your_grok_api_key_here":
+    print("WARNING: GROK_API_KEY is missing or using placeholder.")
+    GROK_API_KEY = None
+    client = None
 else:
-    genai.configure(api_key=GENAI_API_KEY)
-    # Using the standard naming for 1.5 flash
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    client = AsyncOpenAI(
+        api_key=GROK_API_KEY,
+        base_url="https://api.groq.com/openai/v1",
+    )
 
 class ChatRequest(BaseModel):
     message: str
+    user_name: Optional[str] = "User"
     history: List[dict] = []
 
 class RoadmapRequest(BaseModel):
@@ -46,27 +50,40 @@ class InterviewRequest(BaseModel):
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
-    if not GENAI_API_KEY:
-        return {"response": "Hi! I'm in mock mode because no API key was found. I can still help you navigate the app! Try uploading a resume or starting an interview simulation."}
+    if not GROK_API_KEY:
+        return {"response": f"Hi {request.user_name}! I'm in mock mode because no Grok API key was found. I can still help you navigate the app! Try uploading a resume or starting an interview simulation."}
     try:
-        # Attempt primary model
-        chat_session = model.start_chat(history=[])
-        response = chat_session.send_message(request.message)
-        return {"response": response.text}
+        system_instruction = f"""You are Ascendia AI, a helpful placement assistant. The user's name is {request.user_name}. 
+
+FORMATTING RULES (ALWAYS FOLLOW):
+- Use **bold text** to highlight key terms and important concepts.
+- Break responses into clear sections using ### headings.
+- Use bullet points (- ) for lists, never write long paragraphs.
+- When explaining code or algorithms, use ```language code blocks``` with examples.
+- Add relevant emojis sparingly (📌, ✅, 💡, 🔥, ⚡, 📝) to make it visually engaging.
+- Keep each point concise — max 1-2 lines per bullet.
+- Always include a practical **Example** section when explaining concepts.
+- End with a 💡 **Pro Tip** or **Quick Summary** when appropriate.
+- Be professional, encouraging, and highly knowledgeable about careers, DSA, and interviews.
+- NEVER dump everything in one paragraph. Always structure your response."""
+        
+        messages = [{"role": "system", "content": system_instruction}]
+        for msg in request.history:
+            messages.append({"role": "user" if msg["role"] == "user" else "assistant", "content": msg["content"]})
+        messages.append({"role": "user", "content": request.message})
+
+        completion = await client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=messages,
+        )
+        return {"response": completion.choices[0].message.content}
     except Exception as e:
-        # Fallback to gemini-pro if flash is unavailable
-        if "404" in str(e) or "not found" in str(e).lower():
-            try:
-                fallback_model = genai.GenerativeModel('gemini-pro')
-                response = fallback_model.generate_content(request.message)
-                return {"response": response.text}
-            except Exception as fe:
-                raise HTTPException(status_code=500, detail=f"Models unavailable: {str(fe)}")
+        print(f"Chat error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/analyze-resume")
 async def analyze_resume(file: UploadFile = File(...), job_role: str = Form(None)):
-    if not GENAI_API_KEY:
+    if not GROK_API_KEY:
         return {
             "ats_score": 85,
             "skills": ["React", "Python", "FastAPI"],
@@ -74,39 +91,53 @@ async def analyze_resume(file: UploadFile = File(...), job_role: str = Form(None
             "missing_skills": ["Docker", "Kubernetes"],
             "improvement_tips": ["Add more quantifiable achievements.", "Highlight your project leadership roles."],
             "job_match_percentage": 78.5,
-            "match_suggestions": "Focus on backend optimizations to better match the Senior Developer role."
+            "match_suggestions": "Focus on backend optimizations to better match the Senior Developer role.",
+            "improved_resume": "John Doe\\nSoftware Engineer\\n\\nProfessional Summary... (This is mock improved text)"
         }
     try:
         content = await file.read()
-        pdf = PdfReader(io.BytesIO(content))
         text = ""
-        for page in pdf.pages:
-            text += page.extract_text()
+        
+        if file.filename.endswith(".docx"):
+            doc = Document(io.BytesIO(content))
+            text = "\\n".join([para.text for para in doc.paragraphs])
+        else:
+            pdf = PdfReader(io.BytesIO(content))
+            for page in pdf.pages:
+                text += page.extract_text()
         
         prompt = f"""
         Analyze the following resume text and provide feedback in JSON format.
         Resume Text: {text}
         Job Role: {job_role if job_role else "General Placement"}
         
-        Return JSON with:
-        - ats_score (0-100)
-        - skills (list)
-        - keywords_found (list)
-        - missing_skills (list)
-        - improvement_tips (list)
-        - job_match_percentage (float, if job_role provided)
-        - match_suggestions (string, if job_role provided)
+        Also, provide an "improved_resume" field where you rewrite the resume text to be highly professional, ATS-friendly, and impactful.
+        
+        Return JSON strictly matching this schema with no markdown formatting:
+        {{
+            "ats_score": int (0-100),
+            "skills": [string],
+            "keywords_found": [string],
+            "missing_skills": [string],
+            "improvement_tips": [string],
+            "job_match_percentage": float,
+            "match_suggestions": string,
+            "improved_resume": string
+        }}
         """
         
-        response = model.generate_content(prompt)
-        json_str = response.text.replace("```json", "").replace("```", "").strip()
+        completion = await client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+        )
+        json_str = completion.choices[0].message.content.replace("```json", "").replace("```", "").strip()
         return json.loads(json_str)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/generate-roadmap")
 async def generate_roadmap(request: RoadmapRequest):
-    if not GENAI_API_KEY:
+    if not GROK_API_KEY:
         return [
             {"week": 1, "title": "Fundamentals & DSA", "topics": ["Arrays", "Strings", "Complexity Analysis"], "goal": "Master basic data structures."},
             {"week": 2, "title": "Advanced DSA", "topics": ["LinkedLists", "Trees", "Graphs"], "goal": "Solve medium level problems."},
@@ -117,17 +148,26 @@ async def generate_roadmap(request: RoadmapRequest):
         prompt = f"""
         Generate a detailed 8-week career roadmap for a {request.branch} student targeting a {request.target_role} role.
         Include weekly topics for: DSA, Tech Stack, Projects, and Aptitude.
-        Return as a JSON list of weeks, where each week has 'week' (number), 'title', 'topics' (list), and 'goal'.
+        Return as a JSON list of objects strictly matching this schema with no markdown formatting:
+        [{{
+            "week": int,
+            "title": string,
+            "topics": [string],
+            "goal": string
+        }}]
         """
-        response = model.generate_content(prompt)
-        json_str = response.text.replace("```json", "").replace("```", "").strip()
+        completion = await client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+        )
+        json_str = completion.choices[0].message.content.replace("```json", "").replace("```", "").strip()
         return json.loads(json_str)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/interview/evaluate")
 async def evaluate_interview(request: InterviewRequest):
-    if not GENAI_API_KEY:
+    if not GROK_API_KEY:
         return {
             "overall_score": 8,
             "strengths": ["Clear communication", "Good technical knowledge"],
@@ -141,16 +181,21 @@ async def evaluate_interview(request: InterviewRequest):
         Evaluate this mock interview for {request.domain} at {request.difficulty} difficulty.
         Q&A Pairs: {json.dumps(request.answers)}
         
-        Provide feedback in JSON:
-        - overall_score (0-10)
-        - strengths (list)
-        - weaknesses (list)
-        - suggestions (list)
-        - technical_accuracy (0-10)
-        - clarity_score (0-10)
+        Provide feedback in JSON strictly matching this schema with no markdown formatting:
+        {{
+            "overall_score": int (0-10),
+            "strengths": [string],
+            "weaknesses": [string],
+            "suggestions": [string],
+            "technical_accuracy": float (0-10),
+            "clarity_score": float (0-10)
+        }}
         """
-        response = model.generate_content(prompt)
-        json_str = response.text.replace("```json", "").replace("```", "").strip()
+        completion = await client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+        )
+        json_str = completion.choices[0].message.content.replace("```json", "").replace("```", "").strip()
         return json.loads(json_str)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

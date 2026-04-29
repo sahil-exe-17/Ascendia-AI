@@ -13,12 +13,45 @@ const MockInterview = () => {
   const [feedback, setFeedback] = useState(null);
 
   const questions = {
-    Software: ["Diff between process and thread?", "Explain Inheritance.", "How to optimize slow DB query?"],
-    Core: ["Reynolds number significance?", "Entropy in Thermodynamics?", "Crystal structures in materials?"],
-    HR: ["Tell me about yourself.", "Why should we hire you?", "Handle conflict with team member?"]
+    'Software Engineering': ["Difference between process and thread?", "Explain Inheritance and Polymorphism.", "How to optimize a slow database query?"],
+    'Frontend Dev': ["What is the Virtual DOM?", "Explain the CSS box model.", "How do you optimize React performance?"],
+    'Backend Dev': ["REST vs GraphQL?", "What are database ACID properties?", "Explain JWT authentication."],
+    'Full Stack Dev': ["Explain the MVC architecture.", "How do you manage state in a complex application?", "What are WebSockets?"],
+    'Mobile App Dev': ["Explain the app lifecycle.", "What is the difference between native and cross-platform?", "How do you handle background tasks?"],
+    'Data Science': ["What is overfitting and how do you prevent it?", "Explain the Bias-Variance tradeoff.", "How does a Random Forest work?"],
+    'Data Analytics': ["What is the difference between WHERE and HAVING in SQL?", "Explain A/B testing.", "How do you handle missing values in a dataset?"],
+    'Machine Learning / AI': ["Explain gradient descent.", "Supervised vs Unsupervised learning?", "How do you evaluate a classification model?"],
+    'Cybersecurity': ["What is SQL Injection?", "Explain RSA encryption.", "Difference between Symmetric and Asymmetric encryption?"],
+    'Cloud Computing': ["What is the difference between IaaS, PaaS, and SaaS?", "Explain horizontal vs vertical scaling.", "What are microservices?"],
+    'DevOps': ["What is CI/CD?", "Explain containerization vs virtualization.", "How do you handle infrastructure as code?"],
+    'QA / Testing': ["Difference between unit and integration testing?", "Explain Regression Testing.", "How do you write a good test case?"],
+    'Blockchain / Web3': ["What is a smart contract?", "Proof of Work vs Proof of Stake?", "What is a 51% attack?"],
+    'IoT (Internet of Things)': ["What are common IoT protocols (MQTT, CoAP)?", "Explain IoT edge computing.", "How do you handle IoT device security?"],
+    'Product Management': ["How do you prioritize features?", "What is a Minimum Viable Product (MVP)?", "How do you handle conflicting stakeholder requests?"],
+    'Project Management': ["Agile vs Waterfall methodology?", "How do you handle scope creep?", "What is a Gantt chart?"],
+    'Business Analyst': ["What is a Business Requirement Document (BRD)?", "Explain SWOT analysis.", "How do you handle a difficult stakeholder?"],
+    'UI/UX Design': ["What is the difference between UI and UX?", "Explain your design thinking process.", "How do you conduct user research?"],
+    'Human Resources': ["Tell me about yourself.", "Why should we hire you?", "Describe a time you handled a conflict with a team member."],
+    'Marketing': ["What is SEO and why is it important?", "How do you measure a successful campaign?", "Explain inbound vs outbound marketing."],
+    'Sales & Business Dev': ["Pitch me a pen.", "How do you handle objections from a client?", "Difference between B2B and B2C sales?"],
+    'Finance & Accounting': ["Walk me through the three financial statements.", "What is working capital?", "Explain DCF (Discounted Cash Flow)."],
+    'Supply Chain & Operations': ["What is the bullwhip effect?", "Explain Just-In-Time (JIT) manufacturing.", "How do you optimize inventory management?"],
+    'Consulting': ["Walk me through a market sizing guesstimate.", "How do you approach a profitability decline case?", "What is the MECE principle?"],
+    'Mechanical Eng': ["What is the First Law of Thermodynamics?", "Explain the stress-strain curve.", "Difference between hydraulic and pneumatic systems?"],
+    'Electrical Eng': ["Explain Ohm's Law.", "What is the difference between AC and DC?", "How does a transformer work?"],
+    'Civil Eng': ["Difference between a beam and a column?", "Explain the purpose of reinforcement in concrete.", "What are the different types of foundations?"],
+    'Electronics & Comm (ECE)': ["What is a multiplexer?", "Explain modulation and demodulation.", "Difference between microprocessors and microcontrollers?"],
+    'Chemical Eng': ["Explain distillation.", "What is the Reynolds number?", "Difference between an endothermic and exothermic reaction?"],
+    'Aerospace Eng': ["Explain Bernoulli's principle.", "What are the four forces of flight?", "Difference between a jet engine and a rocket engine?"],
+    'Automobile Eng': ["Explain the 4-stroke engine cycle.", "What is the function of a differential?", "Difference between a supercharger and a turbocharger?"],
+    'Robotics & Mechatronics': ["What are degrees of freedom in a robot?", "Explain PID controllers.", "Forward vs inverse kinematics?"],
+    'Biotechnology': ["What is PCR (Polymerase Chain Reaction)?", "Explain CRISPR technology.", "What are monoclonal antibodies?"],
+    'Metallurgy & Materials': ["Explain the iron-carbon phase diagram.", "Difference between annealing and tempering?", "What are alloys?"],
+    'Game Dev': ["What is a game loop?", "Explain Delta Time.", "How does collision detection work?"]
   };
 
-  const currentQuestions = questions[setup.domain];
+  const domains = Object.keys(questions);
+  const currentQuestions = questions[setup.domain] || questions['Software Engineering'];
 
   const handleNext = async () => {
     const newAnswers = [...answers, { question: currentQuestions[currentIdx], answer: currentAnswer }];
@@ -41,6 +74,8 @@ const MockInterview = () => {
         confetti({ particleCount: 150, spread: 80, colors: ['#facc15', '#ffffff'] });
       } catch (e) {
         console.error(e);
+        alert("Interview evaluation failed. Please ensure the backend is running on port 8001.");
+        setPhase('setup');
       } finally {
         setIsLoading(false);
       }
@@ -61,11 +96,15 @@ const MockInterview = () => {
                <div className="grid grid-cols-2 gap-8">
                   <div className="space-y-4">
                      <label className="text-[10px] font-black uppercase text-white/20 tracking-widest">Domain</label>
-                     <div className="flex flex-col gap-2">
-                        {['Software', 'Core', 'HR'].map(d => (
-                          <button key={d} onClick={() => setSetup({...setup, domain: d})} className={`p-4 rounded-2xl text-xs font-bold transition-all ${setup.domain === d ? 'bg-yellow-500 text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>{d}</button>
+                     <select 
+                       value={setup.domain}
+                       onChange={(e) => setSetup({...setup, domain: e.target.value})}
+                       className="w-full bg-black border border-white/5 rounded-2xl p-4 outline-none focus:border-yellow-500/20 appearance-none text-sm font-bold text-white"
+                     >
+                        {domains.map(d => (
+                          <option key={d} value={d} className="bg-black text-white">{d}</option>
                         ))}
-                     </div>
+                     </select>
                   </div>
                   <div className="space-y-4">
                      <label className="text-[10px] font-black uppercase text-white/20 tracking-widest">Intensity</label>

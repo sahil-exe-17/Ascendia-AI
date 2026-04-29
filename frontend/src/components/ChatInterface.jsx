@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Calculator, Package, Send, Zap, User, Loader2 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
-const ChatInterface = ({ setActiveTab }) => {
+const ChatInterface = ({ setActiveTab, userName }) => {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -35,6 +36,7 @@ const ChatInterface = ({ setActiveTab }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: currentInput,
+          user_name: userName || 'User',
           history: messages.map(m => ({ role: m.role, content: m.content }))
         })
       });
@@ -91,7 +93,7 @@ const ChatInterface = ({ setActiveTab }) => {
               </div>
               <div className="text-center">
                 <h2 className="text-5xl font-black mb-4 tracking-tighter">
-                  Welcome back <span className="text-yellow-500 italic">Sahil!</span>
+                  Welcome back <span className="text-yellow-500 italic">{userName || 'User'}!</span>
                 </h2>
                 <p className="text-white/20 font-bold uppercase tracking-[0.3em] text-xs">I'm ready to help you with your placement goals.</p>
               </div>
@@ -110,7 +112,42 @@ const ChatInterface = ({ setActiveTab }) => {
                      ? 'bg-yellow-500 text-black shadow-[0_10px_30px_rgba(250,204,21,0.2)]' 
                      : 'bg-white/5 border border-white/10 text-white/80 backdrop-blur-md'
                    }`}>
-                      {msg.content}
+                      {msg.role === 'assistant' ? (
+                        <div className="markdown-body">
+                          <ReactMarkdown
+                            components={{
+                              h3: ({children}) => <h3 className="text-yellow-400 font-black text-base mt-4 mb-2 tracking-tight">{children}</h3>,
+                              h2: ({children}) => <h2 className="text-yellow-400 font-black text-lg mt-4 mb-2 tracking-tight">{children}</h2>,
+                              h1: ({children}) => <h1 className="text-yellow-400 font-black text-xl mt-4 mb-2 tracking-tight">{children}</h1>,
+                              strong: ({children}) => <strong className="text-yellow-300 font-bold">{children}</strong>,
+                              em: ({children}) => <em className="text-white/90 italic">{children}</em>,
+                              p: ({children}) => <p className="mb-2 leading-relaxed text-white/75">{children}</p>,
+                              ul: ({children}) => <ul className="list-disc list-inside space-y-1.5 mb-3 text-white/70">{children}</ul>,
+                              ol: ({children}) => <ol className="list-decimal list-inside space-y-1.5 mb-3 text-white/70">{children}</ol>,
+                              li: ({children}) => <li className="leading-relaxed">{children}</li>,
+                              code: ({inline, className, children}) => {
+                                if (inline) {
+                                  return <code className="bg-white/10 text-yellow-300 px-1.5 py-0.5 rounded-md text-xs font-mono">{children}</code>;
+                                }
+                                return (
+                                  <div className="my-3 rounded-2xl overflow-hidden border border-white/10">
+                                    <div className="bg-white/5 px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest text-white/30 border-b border-white/5">Code</div>
+                                    <pre className="bg-black/40 p-4 overflow-x-auto">
+                                      <code className="text-green-400 text-xs font-mono leading-relaxed">{children}</code>
+                                    </pre>
+                                  </div>
+                                );
+                              },
+                              blockquote: ({children}) => <blockquote className="border-l-2 border-yellow-500/50 pl-4 my-2 text-white/50 italic">{children}</blockquote>,
+                              hr: () => <hr className="border-white/10 my-4" />,
+                            }}
+                          >
+                            {msg.content}
+                          </ReactMarkdown>
+                        </div>
+                      ) : (
+                        msg.content
+                      )}
                    </div>
                 </div>
               ))}
@@ -161,13 +198,13 @@ const ChatInterface = ({ setActiveTab }) => {
                  onClick={() => setActiveTab(card.tab)}
                  className="action-card group"
                >
-                  <div className="w-10 h-10 rounded-2xl bg-yellow-500/10 border border-yellow-500/10 flex items-center justify-center text-yellow-500 group-hover:bg-yellow-500/20 group-hover:scale-110 transition-all">
-                     <card.icon className="w-5 h-5" />
-                  </div>
-                  <div>
-                     <h5 className="text-sm font-black text-white/90">{card.label}</h5>
-                     <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest mt-1">{card.sub}</p>
-                  </div>
+                <div className="w-10 h-10 rounded-2xl bg-yellow-500/10 border border-yellow-500/10 flex items-center justify-center text-yellow-500 group-hover:bg-yellow-500/20 group-hover:scale-110 transition-all">
+                   <card.icon className="w-5 h-5" />
+                </div>
+                <div>
+                   <h5 className="text-sm font-black text-white/90">{card.label}</h5>
+                   <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest mt-1">{card.sub}</p>
+                </div>
                </button>
              ))}
           </div>
